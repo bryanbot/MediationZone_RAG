@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asistente RAG Multi-Documento</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <style>
+        :root {
+            --primary: #0052CC;
+            /* Azul Atlassian */
+            --bg-color: #F4F5F7;
+            --chat-bg: #FFFFFF;
+            --text-main: #172B4D;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--chat-bg);
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(9, 30, 66, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background-color: var(--primary);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+
+        .chat-history {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            line-height: 1.5;
+        }
+
+        .msg-user {
+            background-color: #DEEBFF;
+            color: #0747A6;
+            align-self: flex-end;
+            border-bottom-right-radius: 0;
+        }
+
+        .msg-bot {
+            background-color: #F4F5F7;
+            border: 1px solid #DFE1E6;
+            align-self: flex-start;
+            border-bottom-left-radius: 0;
+            white-space: pre-wrap;
+        }
+
+        .fuentes-caja {
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #5E6C84;
+            background: #EBECF0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .fuentes-caja ul {
+            margin: 5px 0 0 0;
+            padding-left: 20px;
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #DFE1E6;
+            gap: 10px;
+            /* Espaciado entre elementos */
+        }
+
+        /* NUEVO: Estilos para el selector de manuales */
+        select.selector-manual {
+            padding: 12px;
+            border: 2px solid #DFE1E6;
+            border-radius: 5px;
+            font-size: 0.95rem;
+            outline: none;
+            background-color: #FAFBFC;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: border-color 0.2s;
+            min-width: 180px;
+        }
+
+        select.selector-manual:focus {
+            border-color: var(--primary);
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 12px;
+            border: 2px solid #DFE1E6;
+            border-radius: 5px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #0747A6;
+        }
+
+        button:disabled {
+            background-color: #A5ADBA;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            align-self: flex-start;
+            color: #5E6C84;
+            font-style: italic;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            🤖 Asistente Técnico Multi-Documento
+        </div>
+
+        <div class="chat-history" id="chat-history">
+            <div class="message msg-bot">
+                ¡Hola! Selecciona el manual que deseas consultar en la parte inferior y hazme tu pregunta.
+            </div>
+            <div class="loading" id="indicador-carga">Consultando la base de datos vectorial y procesando IA...</div>
+        </div>
+
+        <div class="chat-input">
+            <select id="select-manual" class="selector-manual">
+                <option value="">Cargando manuales...</option>
+            </select>
+
+            <input type="text" id="input-pregunta" placeholder="Ej: How do I configure the Data Hub agent?"
+                autocomplete="off">
+            <button id="btn-enviar">Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            // --- NUEVO BLOQUE: Auto-descubrir manuales al cargar la página ---
+            $.get("/manuales", function (data) {
+                let select = $('#select-manual');
+                select.empty(); // Limpiamos el texto de "Cargando..."
+
+                if (data.manuales && data.manuales.length === 0) {
+                    select.append(new Option("No hay manuales disponibles", ""));
+                    return;
+                }
+
+                // Agregamos cada manual encontrado como una opción nueva
+                data.manuales.forEach(manual => {
+                    // Ponemos el nombre en mayúsculas para que se vea mejor en la UI
+                    select.append(new Option(manual.toUpperCase(), manual));
+                });
+            }).fail(function () {
+                $('#select-manual').empty().append(new Option("Error al cargar manuales", ""));
+            });
+            // -----------------------------------------------------------------
+
+            const apiURL = "/preguntar";
+
+            function enviarPregunta() {
+                let pregunta = $('#input-pregunta').val().trim();
+                // NUEVO: Capturamos qué manual seleccionó el usuario
+                let manualSeleccionado = $('#select-manual').val();
+
+                if (pregunta === "") return;
+
+                // Mostrar pregunta en el chat
+                $('#chat-history > .loading').before(`<div class="message msg-user">${pregunta}</div>`);
+                $('#input-pregunta').val('');
+                hacerScroll();
+
+                // Bloquear UI
+                $('#btn-enviar').prop('disabled', true);
+                $('#select-manual').prop('disabled', true); // Bloqueamos el selector mientras carga
+                $('#indicador-carga').show();
+                hacerScroll();
+
+                // Petición AJAX (POST)
+                $.ajax({
+                    url: apiURL,
+                    type: "POST",
+                    contentType: "application/json",
+
+                    headers: {
+                        "ngrok-skip-browser-warning": "true"
+                    },
+
+                    // NUEVO: Enviamos el JSON con la estructura { pregunta: "...", manual: "..." }
+                    data: JSON.stringify({
+                        "pregunta": pregunta,
+                        "manual": manualSeleccionado
+                    }),
+                    success: function (response) {
+                        $('#indicador-carga').hide();
+                        $('#btn-enviar').prop('disabled', false);
+                        $('#select-manual').prop('disabled', false);
+
+                        let listaFuentesHtml = "";
+
+                        if (response.fuentes && response.fuentes.length > 0) {
+                            let fuentesUnicas = new Set(); // Usamos un Set para no repetir nombres de archivos
+
+                            response.fuentes.forEach(fuente => {
+                                // Prioridad: 1. titulo_pagina, 2. source (ruta de archivo), 3. Genérico
+                                let rawSource = fuente["titulo_pagina"] || fuente["source"] || "Documento técnico";
+
+                                // Limpiamos la ruta para quedarnos solo con el nombre del archivo
+                                let nombreLimpio = rawSource.split('/').pop().split('\\').pop();
+                                fuentesUnicas.add(nombreLimpio);
+                            });
+
+                            // Construimos los elementos de la lista <li>
+                            fuentesUnicas.forEach(nombre => {
+                                listaFuentesHtml += `<li>${nombre}</li>`;
+                            });
+                        }
+
+                        // Si no hubo fuentes, ponemos un mensaje informativo
+                        if (listaFuentesHtml === "") {
+                            listaFuentesHtml = "<li>Información general del modelo</li>";
+                        }
+
+                        let htmlBot = `
+                        <div class="message msg-bot">
+                            ${response.respuesta}
+                            <div class="fuentes-caja">
+                                <strong>Fuentes consultadas (${$('#select-manual option:selected').text()}):</strong>
+                                <ul>${listaFuentesHtml}</ul>
+                            </div>
+                        </div>`;
+
+                        $('#chat-history > .loading').before(htmlBot);
+                        hacerScroll();
+                    },
+                    error: function (xhr) {
+                        $('#indicador-carga').hide();
+                        $('#btn-enviar').prop('disabled', false);
+                        $('#select-manual').prop('disabled', false);
+
+                        let errorMsg = "Ocurrió un error. Asegúrate de que FastAPI esté corriendo y que el manual exista en el backend.";
+                        if (xhr.responseJSON && xhr.responseJSON.detail) {
+                            errorMsg = xhr.responseJSON.detail; // Mostrar el error específico de FastAPI (ej. 404 Manual no encontrado)
+                        }
+
+                        $('#chat-history > .loading').before(`<div class="message msg-bot" style="color: #DE350B;">${errorMsg}</div>`);
+                        hacerScroll();
+                    }
+                });
+            }
+
+            function hacerScroll() {
+                let chat = document.getElementById('chat-history');
+                chat.scrollTop = chat.scrollHeight;
+            }
+
+            $('#btn-enviar').click(enviarPregunta);
+            $('#input-pregunta').keypress(function (e) {
+                if (e.which == 13) enviarPregunta();
+            });
+        });
+    </script>
+
+</body>
+
+</html>

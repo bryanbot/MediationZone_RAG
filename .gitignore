@@ -1,0 +1,32 @@
+# ==========================================
+# 1. ENTORNOS VIRTUALES Y CACHÉ DE PYTHON
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# ==========================================
+# 2. DATOS DEL PROYECTO RAG (¡CRÍTICO!)
+# ==========================================
+# Ignoramos la carpeta de vectores porque se generan localmente
+bases_vectoriales/
+
+# Ignoramos los JSON crudos extraídos de Confluence (pueden ser confidenciales)
+data_output/
+
+# ==========================================
+# 3. VARIABLES DE ENTORNO Y SECRETOS
+# ==========================================
+.env
+.env.local
+
+# ==========================================
+# 4. ARCHIVOS DEL SISTEMA OPERATIVO Y editores
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

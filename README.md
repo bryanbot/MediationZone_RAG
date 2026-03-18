@@ -73,6 +73,6 @@ python api_rag.py
 
 Open your browser and navigate to `http://localhost:8000/` to interact with the GUI.
 
-🗺️ Roadmap / Future Work
+# 🗺️ Roadmap / Future Work
 - Agentic AI Workflows: Evolve the system from a passive RAG (Q&A) into an LLM agent ecosystem, allowing the AI not only to read manuals but also to execute diagnostic commands or server configurations based on the technical documentation.
 - Multi-Format Support: Integrate additional strategies into the extractor (Strategy Pattern) to process local PDF files and code repositories.

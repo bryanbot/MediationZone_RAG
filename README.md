@@ -1,4 +1,4 @@
-# 📚 Multi-Document RAG API for Technical Documentation
+# 📚 Multi-Document RAG API for Technical Documentation of InfoZone
 
 ![Python](https://img.shields.io/badge/Python-3.x-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)
